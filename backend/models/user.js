@@ -27,11 +27,16 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    // User role
     role: {
       type: String,
       enum: ["citizen", "admin", "worker"],
       default: "citizen",
+    },
+
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved",
     },
   },
   {
