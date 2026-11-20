@@ -289,7 +289,6 @@ class _LoginPageState extends State<LoginPage> {
 // ======================================================
 // REGISTER PAGE
 // ======================================================
-
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -304,15 +303,15 @@ class _RegisterPageState extends State<RegisterPage> {
 
   bool loading = false;
 
+  String selectedRole = 'citizen';
+
   Future<void> register() async {
-    // Remove keyboard focus first
     FocusScope.of(context).unfocus();
 
     final name = nameController.text.trim();
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    // Check fields
     if (name.isEmpty) {
       showMessage('Please enter your full name');
       return;
@@ -342,6 +341,7 @@ class _RegisterPageState extends State<RegisterPage> {
           'name': name,
           'email': email,
           'password': password,
+          'role': selectedRole,
         }),
       );
 
@@ -351,10 +351,14 @@ class _RegisterPageState extends State<RegisterPage> {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
-        showMessage('Account created successfully');
+        showMessage(
+          selectedRole == 'worker'
+              ? 'Worker account created. Waiting for admin approval.'
+              : 'Citizen account created successfully.',
+        );
 
         await Future.delayed(
-          const Duration(seconds: 1),
+          const Duration(seconds: 2),
         );
 
         if (!mounted) return;
@@ -368,9 +372,7 @@ class _RegisterPageState extends State<RegisterPage> {
     } catch (e) {
       print('REGISTER ERROR: $e');
 
-      showMessage(
-        'Cannot connect to backend',
-      );
+      showMessage('Cannot connect to backend');
     }
 
     if (mounted) {
@@ -400,26 +402,9 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Create Account',
-        ),
+        title: const Text('Create Account'),
         backgroundColor: const Color(0xFF176B3A),
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LoginPage(),
-                ),
-                (route) => false,
-              );
-            },
-          ),
-        ],
       ),
 
       body: Center(
@@ -447,19 +432,18 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     const SizedBox(height: 20),
 
+                    const Text(
+                      'Create Your Account',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
                     TextField(
                       controller: nameController,
-
-                      onChanged: (value) {
-                        nameController.value =
-                            nameController.value.copyWith(
-                          text: value,
-                          selection: TextSelection.collapsed(
-                            offset: value.length,
-                          ),
-                        );
-                      },
-
                       decoration: const InputDecoration(
                         labelText: 'Full Name',
                         prefixIcon: Icon(Icons.person),
@@ -471,19 +455,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     TextField(
                       controller: emailController,
-
-                      onChanged: (value) {
-                        emailController.value =
-                            emailController.value.copyWith(
-                          text: value,
-                          selection: TextSelection.collapsed(
-                            offset: value.length,
-                          ),
-                        );
-                      },
-
                       keyboardType: TextInputType.emailAddress,
-
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.email),
@@ -495,25 +467,72 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     TextField(
                       controller: passwordController,
-
                       obscureText: true,
-
-                      onChanged: (value) {
-                        passwordController.value =
-                            passwordController.value.copyWith(
-                          text: value,
-                          selection: TextSelection.collapsed(
-                            offset: value.length,
-                          ),
-                        );
-                      },
-
                       decoration: const InputDecoration(
                         labelText: 'Password',
                         prefixIcon: Icon(Icons.lock),
                         border: OutlineInputBorder(),
                       ),
                     ),
+
+                    const SizedBox(height: 20),
+
+                    // ROLE SELECTION
+
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Register As',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    DropdownButtonFormField<String>(
+                      value: selectedRole,
+
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.badge),
+                        border: OutlineInputBorder(),
+                      ),
+
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'citizen',
+                          child: Text('Citizen'),
+                        ),
+
+                        DropdownMenuItem(
+                          value: 'worker',
+                          child: Text('Worker'),
+                        ),
+                      ],
+
+                      onChanged: loading
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() {
+                                  selectedRole = value;
+                                });
+                              }
+                            },
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    if (selectedRole == 'worker')
+                      const Text(
+                        'Worker accounts require admin approval before login.',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 13,
+                        ),
+                      ),
 
                     const SizedBox(height: 25),
 
@@ -525,8 +544,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         onPressed: loading ? null : register,
 
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color(0xFF176B3A),
+                          backgroundColor: const Color(0xFF176B3A),
                           foregroundColor: Colors.white,
                         ),
 
@@ -534,9 +552,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             ? const CircularProgressIndicator(
                                 color: Colors.white,
                               )
-                            : const Text(
-                                'CREATE ACCOUNT',
-                              ),
+                            : const Text('CREATE ACCOUNT'),
                       ),
                     ),
                   ],
