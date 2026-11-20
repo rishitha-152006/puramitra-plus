@@ -59,7 +59,9 @@ class _LoginPageState extends State<LoginPage> {
   bool hidePassword = true;
   bool loading = false;
 
-  Future<void> login() async {
+ Future<void> login() async {
+  FocusScope.of(context).unfocus();
+
   final email = emailController.text.trim();
   final password = passwordController.text.trim();
 
@@ -87,53 +89,58 @@ class _LoginPageState extends State<LoginPage> {
     final data = jsonDecode(response.body);
 
     if (response.statusCode == 200) {
+      final user = data['user'];
+      final role = user['role'];
+
       if (!mounted) return;
 
-      final role = data['user']['role'];
-
       if (role == 'admin') {
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const AdminComplaintsPage(),
-    ),
-  );
-}else if (role == 'worker') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AdminComplaintsPage(),
+          ),
+        );
+      } else if (role == 'worker') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => WorkerDashboard(
-              userId: data['user']['id'],
-              userName: data['user']['name'],
-              email: data['user']['email'],
+              userId: user['id'],
+              userName: user['name'],
+              email: user['email'],
             ),
           ),
         );
-      } else {
+      } else if (role == 'citizen') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => ResidentDashboard(
-              userId: data['user']['id'],
-              userName: data['user']['name'],
-              email: data['user']['email'],
+              userId: user['id'],
+              userName: user['name'],
+              email: user['email'],
             ),
           ),
         );
+      } else {
+        showMessage('Invalid account role. Contact administrator.');
       }
     } else {
-      showMessage(data['message'] ?? 'Login failed');
+      showMessage(
+        data['message'] ?? 'Login failed',
+      );
     }
   } catch (e) {
-    showMessage(
-      'Cannot connect to backend.\nMake sure the server is running.',
-    );
-  }
+    print('LOGIN ERROR: $e');
 
-  if (mounted) {
-    setState(() {
-      loading = false;
-    });
+    showMessage('Cannot connect to backend. Please try again.');
+  } finally {
+    if (mounted) {
+      setState(() {
+        loading = false;
+      });
+    }
   }
 }
 
