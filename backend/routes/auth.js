@@ -11,8 +11,7 @@ const router = express.Router();
 
 router.post("/register", async (req, res) => {
   try {
-
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -20,8 +19,19 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    // Allow only citizen or worker registration
+    const selectedRole = role || "citizen";
+
+    if (!["citizen", "worker"].includes(selectedRole)) {
+      return res.status(400).json({
+        message: "Invalid registration role",
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
     const existingUser = await User.findOne({
-      email: email.toLowerCase(),
+      email: normalizedEmail,
     });
 
     if (existingUser) {
@@ -33,23 +43,29 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = new User({
-      name: name,
-      email: email.toLowerCase(),
+      name: name.trim(),
+      email: normalizedEmail,
       password: hashedPassword,
-      role: "citizen",
+      role: selectedRole,
+      status: selectedRole === "worker" ? "pending" : "approved",
     });
 
     await user.save();
 
     res.status(201).json({
-      message: "Account created successfully",
+      message:
+        selectedRole === "worker"
+          ? "Worker account created. Waiting for admin approval."
+          : "Citizen account created successfully.",
       user: {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
         role: user.role,
+        status: user.status,
       },
     });
+
   } catch (error) {
     console.error("REGISTER ERROR:", error);
 
@@ -66,7 +82,6 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -75,8 +90,10 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     const user = await User.findOne({
-      email: email.toLowerCase(),
+      email: normalizedEmail,
     });
 
     if (!user) {
@@ -96,6 +113,13 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    // Check worker approval
+    if (user.role === "worker" && user.status !== "approved") {
+      return res.status(403).json({
+        message: "Your worker account is waiting for admin approval.",
+      });
+    }
+
     res.status(200).json({
       message: "Login successful",
       user: {
@@ -103,8 +127,10 @@ router.post("/login", async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        status: user.status,
       },
     });
+
   } catch (error) {
     console.error("LOGIN ERROR:", error);
 
